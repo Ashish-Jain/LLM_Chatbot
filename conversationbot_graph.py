@@ -164,22 +164,13 @@ def build_graph():
 
     return graph.compile()
 
-def start_chat(query: str, session_id: str) -> str:
+def start_chat(query: str, messages: list[BaseMessage]) -> tuple[str, list[BaseMessage]]:
     graph = build_graph()
-    history = RedisChatMessageHistory(
-        session_id=session_id,
-        url="redis://localhost:6379"
-    )
 
-    messages = history.messages
-    messages.append(HumanMessage(content=query))
+    messages = messages + [HumanMessage(content=query)]
 
     result = graph.invoke({"messages": messages})
 
-    # Save updated messages back to Redis
-    history.clear()
-    for msg in result["messages"]:
-        history.add_message(msg)
+    messages = result["messages"]
 
     return result["messages"][-1].content
-
