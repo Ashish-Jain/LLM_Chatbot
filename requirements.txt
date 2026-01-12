@@ -10,6 +10,8 @@ streamlit==1.52.2
 yfinance==1.0
 typing-extensions
 faiss-cpu
+sentence_transformers
+
 
 
 
