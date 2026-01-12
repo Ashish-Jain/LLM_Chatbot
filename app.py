@@ -1,7 +1,6 @@
 import streamlit as st
 from langchain.memory import ConversationBufferMemory
 from conversationbot_graph import start_chat
-from langchain_core.messages import HumanMessage
 
 st.set_page_config(
     page_title="Groq Chatbot",
@@ -14,6 +13,7 @@ st.title("🤖 Groq Chatbot")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
 
 if "memory" not in st.session_state:
     st.session_state.memory = ConversationBufferMemory(
@@ -33,15 +33,6 @@ if user_input is not None:
     st.chat_message("assistant").markdown(user_input)
 if bot_reply is not None:
     st.chat_message("assistant").markdown(bot_reply)
-
-if user_input:
-    response, updated_messages = start_chat(
-        user_input,
-        st.session_state.messages
-    )
-
-    st.session_state.messages = updated_messages
-    st.chat_message("assistant").write(response)
 
 st.session_state.messages.append(
     {"role": "assistant", "content": bot_reply}
