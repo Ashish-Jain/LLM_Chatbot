@@ -23,9 +23,8 @@ from langgraph.prebuilt import create_react_agent, ToolNode
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.tools import tool
-
-
-
+from langchain_core.messages import HumanMessage, BaseMessage
+from langchain_core.messages import HumanMessage
 
 llm = ChatGroq(model='moonshotai/kimi-k2-instruct-0905',groq_api_key='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',http_client=httpx.Client(verify=False))
 
@@ -164,13 +163,28 @@ def build_graph():
 
     return graph.compile()
 
-def start_chat(query: str, messages: list[BaseMessage]) -> tuple[str, list[BaseMessage]]:
+from langchain_core.messages import HumanMessage
+
+def start_chat(query: str, session_id: str) -> str:
     graph = build_graph()
+
+    # 🔹 In-memory session store (replaces Redis)
+    if not hasattr(start_chat, "_sessions"):
+        start_chat._sessions = {}
+
+    if session_id not in start_chat._sessions:
+        start_chat._sessions[session_id] = []
+
+    messages = start_chat._sessions[session_id]
 
     messages = messages + [HumanMessage(content=query)]
 
     result = graph.invoke({"messages": messages})
 
-    messages = result["messages"]
+    # update session memory
+    start_chat._sessions[session_id] = result["messages"]
 
     return result["messages"][-1].content
+
+
+
