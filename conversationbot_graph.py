@@ -4,19 +4,11 @@ warnings.filterwarnings("ignore")
 import httpx
 import requests
 import yfinance as yf
-from duckduckgo_search import DDGS
+import os
 
 from typing import TypedDict, List
 
 from langchain_groq import ChatGroq
-from langchain_core.messages import (
-    BaseMessage,
-    HumanMessage,
-    AIMessage
-)
-from langchain_core.tools import Tool
-from langchain_community.chat_message_histories import RedisChatMessageHistory
-
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import create_react_agent, ToolNode
 
@@ -24,18 +16,28 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, BaseMessage
-from langchain_core.messages import HumanMessage
+from typing import List
+from pydantic import BaseModel, ValidationError
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-llm = ChatGroq(model='moonshotai/kimi-k2-instruct-0905',groq_api_key='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',http_client=httpx.Client(verify=False))
 
-# pdf_file = "India_Holidays_and_Gift_Policy.pdf"
-# loader = PyPDFLoader(pdf_file)   # <-- your PDF file
-# documents = loader.load()
-# text_splitter = RecursiveCharacterTextSplitter(chunk_size=800,chunk_overlap=150)
-# docs = text_splitter.split_documents(documents)
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-# vectorstore = FAISS.from_documents(docs, embeddings)
-# vectorstore.save_local("pdf_vectorstore")
+class AgentOutput(BaseModel):
+    action: str
+    tool_name: str | None = None
+    tool_input: dict | None = None
+
+def output_guardrail(llm_output: dict):
+    return AgentOutput(**llm_output)
+
+def CreatVector(pdf_file):
+    loader = PyPDFLoader(pdf_file)   # <-- your PDF file
+    documents = loader.load()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=800,chunk_overlap=150)
+    docs = text_splitter.split_documents(documents)
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vectorstore = FAISS.from_documents(docs, embeddings)
+    vectorstore.save_local("pdf_vectorstore")
 
 @tool("pdf_knowledge_base")
 def pdf_knowledge_base(query: str) -> str:
@@ -43,6 +45,7 @@ def pdf_knowledge_base(query: str) -> str:
       Use this tool to answer questions about the company holiday list and gift policy document.
     """
     print("start: Inside pdf_search with query {0}".format(query))
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     """Get holiday details and company gift policy and process using India_Holidays_and_Gift_Policy.pdf"""
     vectorstore = FAISS.load_local(folder_path="pdf_vectorstore", embeddings=embeddings,
                                    allow_dangerous_deserialization=True)
@@ -121,18 +124,12 @@ def web_search(query: str) -> str:
     #     results = list(ddgs.text(query, max_results=3))
     # return str(results)
 
-tools = [
-    pdf_knowledge_base,
-    web_search,
-    get_stock_info,
-    get_dividends,
-]
+
 
 class AgentState(TypedDict):
     messages: List[BaseMessage]
 
-react_agent = create_react_agent(llm, tools)
-tool_node = ToolNode(tools)
+
 
 def should_continue(state):
     messages = state["messages"]
@@ -142,9 +139,10 @@ def should_continue(state):
         return "tools"
     return "__end__"
 
-def build_graph():
+def build_graph(llm,tools):
     graph = StateGraph(AgentState)
-
+    react_agent = create_react_agent(llm, tools)
+    tool_node = ToolNode(tools)
     graph.add_node("agent", react_agent)
     graph.add_node("tools", tool_node)
 
@@ -165,8 +163,17 @@ def build_graph():
 
 from langchain_core.messages import HumanMessage
 
-def start_chat(query: str, session_id: str) -> str:
-    graph = build_graph()
+def start_chat(query: str, session_id: str, api_key: str) -> str:
+    llm = ChatGroq(model='moonshotai/kimi-k2-instruct-0905',
+                   groq_api_key=os.environ["GROQ_API_KEY"],
+                   http_client=httpx.Client(verify=False))
+    tools = [
+        pdf_knowledge_base,
+        web_search,
+        get_stock_info,
+        get_dividends
+    ]
+    chat_graph = build_graph(llm,tools)
 
     # 🔹 In-memory session store (replaces Redis)
     if not hasattr(start_chat, "_sessions"):
@@ -179,7 +186,7 @@ def start_chat(query: str, session_id: str) -> str:
 
     messages = messages + [HumanMessage(content=query)]
 
-    result = graph.invoke({"messages": messages})
+    result = chat_graph.invoke({"messages": messages})
 
     # update session memory
     start_chat._sessions[session_id] = result["messages"]
