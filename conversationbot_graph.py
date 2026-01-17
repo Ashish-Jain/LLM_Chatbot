@@ -5,30 +5,74 @@ import httpx
 import requests
 import yfinance as yf
 import os
+import re
 
-from typing import TypedDict, List
+from typing import TypedDict, List,Optional, Dict
 
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import create_react_agent, ToolNode
-
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, BaseMessage
-from typing import List
 from pydantic import BaseModel, ValidationError
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema import HumanMessage, SystemMessage
+
+FORBIDDEN_PATTERNS = [
+    r"ignore.*system",
+    r"reveal.*prompt",
+    r"training.*cutoff",
+    r"model.*freeze",
+]
+
+def input_guardrail(user_input: str):
+    text = user_input.lower()
+    for p in FORBIDDEN_PATTERNS:
+        if re.search(p, text):
+            return {
+                "blocked": True,
+                "response": "This request is not allowed."
+            }
+    return {"blocked": False}
+
+def metadata_guardrail(user_input: str):
+    keywords = ["training cutoff", "knowledge cutoff", "model freeze"]
+    if any(k in user_input.lower() for k in keywords):
+        return {
+            "blocked": True,
+            "response": "Training cutoff not publicly disclosed."
+        }
+    return {"blocked": False}
+
+ALLOWED_TOOLS = {"pdf_knowledge_base", "web_search", "get_stock_info"}
+
+def tool_guardrail(tool_name: str):
+    if tool_name not in ALLOWED_TOOLS:
+        raise RuntimeError(f"Tool '{tool_name}' is not allowed")
 
 
 class AgentOutput(BaseModel):
-    action: str
-    tool_name: str | None = None
-    tool_input: dict | None = None
+    content: str = ""
+    action: str = "none"  # default action to avoid missing field
+    tool: Optional[Dict] = None
+    tool_input: Optional[Dict] = None
 
-def output_guardrail(llm_output: dict):
-    return AgentOutput(**llm_output)
+def output_guardrail(llm_output: dict)-> AgentOutput:
+    """
+        Enforces that the agent only returns allowed structured output.
+        Any free-form or missing fields get converted to an error.
+        """
+    # Ensure required keys exist
+    safe_output = {
+        "content": llm_output.get("content", ""),
+        "action": llm_output.get("action", "none"),   # fix missing field
+        "tool": llm_output.get("tool"),
+        "tool_input": llm_output.get("tool_input")
+    }
+    return AgentOutput(**safe_output)
 
 def CreatVector(pdf_file):
     loader = PyPDFLoader(pdf_file)   # <-- your PDF file
@@ -163,10 +207,21 @@ def build_graph(llm,tools):
 
 from langchain_core.messages import HumanMessage
 
+class AgentResponse(BaseModel):
+    content: str
+    tool: Optional[str] = None
+    tool_input: Optional[Dict] = None
+
 def start_chat(query: str, session_id: str, api_key: str) -> str:
+    for guard in (input_guardrail, metadata_guardrail):
+        result = guard(query)
+        if result["blocked"]:
+            return result["response"]
+
     llm = ChatGroq(model='moonshotai/kimi-k2-instruct-0905',
                    groq_api_key=os.environ["GROQ_API_KEY"],
-                   http_client=httpx.Client(verify=False))
+                   http_client=httpx.Client(verify=False),
+                   max_tokens=1000 )
     tools = [
         pdf_knowledge_base,
         web_search,
@@ -174,6 +229,13 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
         get_dividends
     ]
     chat_graph = build_graph(llm,tools)
+
+    system_prompt = '''
+    - Only answer questions using your defined tools: pdf_knowledge_base, web_search, get_stock_info, get_dividends.
+- Never provide answers outside the agent logic.
+- If asked for anything else, respond: "I cannot answer that request because its beyond tool call."
+- please include tool name and tool input in response for each input query
+    '''
 
     # 🔹 In-memory session store (replaces Redis)
     if not hasattr(start_chat, "_sessions"):
@@ -184,6 +246,9 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
 
     messages = start_chat._sessions[session_id]
 
+    if system_prompt:
+        messages = messages + [SystemMessage(content=system_prompt)]
+
     messages = messages + [HumanMessage(content=query)]
 
     result = chat_graph.invoke({"messages": messages})
@@ -191,7 +256,20 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     # update session memory
     start_chat._sessions[session_id] = result["messages"]
 
-    return result["messages"][-1].content
+    tools_used = []
+    for msg in result["messages"]:
+        # Only look at messages that used a tool
+        if hasattr(msg, "tool") and msg.tool:
+            tools_used.append({
+                "tool": msg.tool,
+                "tool_input": getattr(msg, "tool_input", None)
+            })
+
+    last_content = result["messages"][-1].content if result["messages"] else ""
+
+    parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
+
+    return parsed.content
 
 
 
