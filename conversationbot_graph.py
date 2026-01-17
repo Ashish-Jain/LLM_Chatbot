@@ -220,8 +220,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
 
     llm = ChatGroq(model='moonshotai/kimi-k2-instruct-0905',
                    groq_api_key=os.environ["GROQ_API_KEY"],
-                   http_client=httpx.Client(verify=False),
-                   max_tokens=1000 )
+                   http_client=httpx.Client(verify=False),)
     tools = [
         pdf_knowledge_base,
         web_search,
@@ -261,8 +260,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
         # Only look at messages that used a tool
         if hasattr(msg, "tool") and msg.tool:
             tools_used.append({
-                "tool": msg.tool,
-                "tool_input": getattr(msg, "tool_input", None)
+                "tool": msg.tool
             })
 
     last_content = result["messages"][-1].content if result["messages"] else ""
@@ -270,6 +268,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
