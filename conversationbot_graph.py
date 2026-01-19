@@ -88,6 +88,21 @@ def CreatVector(pdf_file):
     vectorstore = FAISS.from_documents(docs, embeddings)
     vectorstore.save_local("pdf_vectorstore")
 
+@tool("pdf_Bhagwat_Geeta")
+def pdf_Bhagwat_Geeta(query: str) -> str:
+    """
+    Use this tool to answer questions about the Geeta and teaching of bhagwat.
+     """
+    print("start: Inside pdf_search with query {0}".format(query))
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    """Get holiday details and company gift policy and process using India_Holidays_and_Gift_Policy.pdf"""
+    vectorstore = FAISS.load_local(folder_path="Bhagavad-gita-As-It-Is", embeddings=embeddings,
+                                   allow_dangerous_deserialization=True)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+    docs = retriever.get_relevant_documents(query)
+    return "\n\n".join(d.page_content for d in docs)
+
+
 @tool("pdf_knowledge_base")
 def pdf_knowledge_base(query: str) -> str:
     """
@@ -227,6 +242,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
                    groq_api_key=os.environ["GROQ_API_KEY"],
                    http_client=httpx.Client(verify=False),)
     tools = [
+        pdf_Bhagwat_Geeta,
         pdf_knowledge_base,
         web_search,
         get_stock_info,
@@ -271,6 +287,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
