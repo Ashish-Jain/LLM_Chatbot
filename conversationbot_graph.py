@@ -232,11 +232,8 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     system_prompt = '''
     - Only answer questions using your defined tools: pdf_knowledge_base, web_search, get_stock_info, get_dividends.
 - Never provide answers outside the agent logic.
-- If asked for anything else, respond: "I cannot answer that request because its beyond tool call."
-- please include tool name and tool input in response for each input query
     '''
 
-    # 🔹 In-memory session store (replaces Redis)
     if not hasattr(start_chat, "_sessions"):
         start_chat._sessions = {}
 
@@ -268,6 +265,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
