@@ -251,8 +251,9 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     chat_graph = build_graph(llm,tools)
 
     system_prompt = '''
-    - Only answer questions using your defined tools: pdf_knowledge_base, web_search, get_stock_info, get_dividends.
+    - Only answer questions using your defined tools: pdf_Bhagwat_Geeta, pdf_knowledge_base, web_search, get_stock_info, get_dividends.
     - Rules:
+        - if tool used are in pdf_knowledge_base or pdf_Bhagwat_Geeta pleaer return chunk text with reply as Chunk Text:  
         - Answer ONLY using the provided document context.
         - Do NOT use prior knowledge.
         - If the answer is not explicitly present, reply:
@@ -293,6 +294,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
