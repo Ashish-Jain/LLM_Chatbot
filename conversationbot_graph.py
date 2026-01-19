@@ -253,13 +253,12 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     system_prompt = '''
     - Only answer questions using your defined tools: pdf_Bhagwat_Geeta, pdf_knowledge_base, web_search, get_stock_info, get_dividends.
     - Rules:
-        - if tool used are in pdf_knowledge_base or pdf_Bhagwat_Geeta pleaer return chunk text with reply as Chunk Text:  
+        - if tool used are in pdf_knowledge_base or pdf_Bhagwat_Geeta pleaer return chunk text with reply as Chunk Text: chunk text from document 
         - Answer ONLY using the provided document context.
         - Do NOT use prior knowledge.
-        - If the answer is not explicitly present, reply:
+        - if tool used are in pdf_knowledge_base or pdf_Bhagwat_Geeta and the answer is not explicitly present, reply:
               "Not found in the provided documents."
         - Every factual statement MUST have a citation [chunk_id].
-        - If you cannot cite it, you must not say it.
         - Today's date is {datetime.now().strftime('%Y-%m-%d')}. Use this as the current date
     '''
 
@@ -294,6 +293,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
