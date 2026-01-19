@@ -20,6 +20,11 @@ from pydantic import BaseModel, ValidationError
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import HumanMessage, SystemMessage
+from datetime import datetime
+from langchain_core.messages import SystemMessage
+
+
+current_date = datetime.now().strftime("%Y-%m-%d")
 
 FORBIDDEN_PATTERNS = [
     r"ignore.*system",
@@ -231,8 +236,8 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
 
     system_prompt = '''
     - Only answer questions using your defined tools: pdf_knowledge_base, web_search, get_stock_info, get_dividends.
-- Never provide answers outside the agent logic.
-- treat current date as system date instead of model freeze date
+    - Never provide answers outside the agent logic.
+    - Today's date is {datetime.now().strftime('%Y-%m-%d')}. Use this as the current date
     '''
 
     if not hasattr(start_chat, "_sessions"):
@@ -266,6 +271,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
