@@ -11,6 +11,10 @@ yfinance==1.0
 typing-extensions
 faiss-cpu
 sentence_transformers
+openpyxl
+pandas
+
+
 
 
 
