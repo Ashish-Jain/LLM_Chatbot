@@ -22,6 +22,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import HumanMessage, SystemMessage
 from datetime import datetime
 from langchain_core.messages import SystemMessage
+import pandas as pd
 
 
 current_date = datetime.now().strftime("%Y-%m-%d")
@@ -317,6 +318,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
