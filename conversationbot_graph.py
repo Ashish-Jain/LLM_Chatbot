@@ -102,6 +102,28 @@ def pdf_Bhagwat_Geeta(query: str) -> str:
     docs = retriever.get_relevant_documents(query)
     return "\n\n".join(d.page_content for d in docs)
 
+@tool("PMS_data")
+def PMS_data(query: str) -> str:
+    """
+      Use this tool to answer questions about the company PMS data, interview counts, training take, employee name.
+    """
+    documents = []
+    for idx, row in df.iterrows():
+        text = " | ".join(f"{col}: {row[col]}" for col in df.columns)
+        documents.append(
+            Document(
+                page_content=text,
+                metadata={"row": idx + 1}
+            )
+        )
+    
+    print("start: Inside pdf_search with query {0}".format(query))
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    vectorstore = FAISS.from_documents(documents, embeddings)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
+    docs = retriever.get_relevant_documents(query)
+    return "\n\n".join(d.page_content for d in docs)
 
 @tool("pdf_knowledge_base")
 def pdf_knowledge_base(query: str) -> str:
@@ -293,6 +315,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
