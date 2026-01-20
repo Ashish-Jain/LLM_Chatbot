@@ -344,8 +344,8 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     try:
         result = chat_graph.invoke({"messages": messages})
     except Exception as e:
-            if "429" in str(e) or "rate limit" in str(e).lower():
-                return "Rate Limit exceeded. please try after sometime"
+            if "429" in str(e) or "rate limit" in str(e).lower() or "request too large" in str(e).lower():
+                return "Rate Limit exceeded or context is too large. please try after sometime with limited context"
             else:
                 raise
 
@@ -365,6 +365,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
