@@ -101,7 +101,7 @@ def metadata_guardrail(user_input: str):
     return {"blocked": False}
 
 
-ALLOWED_TOOLS = {"pdf_knowledge_base", "web_search", "get_stock_info"}
+ALLOWED_TOOLS = {"pdf_knowledge_base", "web_search", "get_stock_info","PMS_data"}
 
 
 def tool_guardrail(tool_name: str):
@@ -364,6 +364,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
