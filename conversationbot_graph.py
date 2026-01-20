@@ -1,4 +1,5 @@
 import warnings
+
 warnings.filterwarnings("ignore")
 
 import httpx
@@ -7,7 +8,7 @@ import yfinance as yf
 import os
 import re
 
-from typing import TypedDict, List,Optional, Dict
+from typing import TypedDict, List, Optional, Dict
 
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, END
@@ -23,7 +24,16 @@ from langchain.schema import HumanMessage, SystemMessage
 from datetime import datetime
 from langchain_core.messages import SystemMessage
 import pandas as pd
+from langchain.docstore.document import Document
+from pms_processing import CreateVector
+import pandas as pd
+import json
+import os
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 
+import json
+from langchain.docstore.document import Document
 
 current_date = datetime.now().strftime("%Y-%m-%d")
 
@@ -34,6 +44,42 @@ FORBIDDEN_PATTERNS = [
     r"model.*freeze",
 ]
 
+def CreateDocuments(records):
+    documents = []
+
+    for r in records:
+        print(r)
+        text = " | ".join(
+            f"{k}: {v}" for k, v in r.items()
+        )
+
+        documents.append(
+            Document(
+                page_content=text
+            )
+        )
+    print(f"✅ Loaded {len(documents)} documents")
+    return documents
+
+def CreateVector(excel_file):
+    if os.path.exists("PMS25"):
+        print("✅ Loading existing embeddings")
+        vectorstore = FAISS.load_local(
+            "PMS25",
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+    else:
+        df_Interviews = pd.read_excel(excel_file, sheet_name="Interview_Count")
+        df_Training = pd.read_excel(excel_file, sheet_name="Training_Data")
+        merged_df = pd.merge(df_Interviews, df_Training, on="Emp_ID", how="inner")
+
+        print("🆕 Creating embeddings from JSON")
+        documents = CreateDocuments(merged_df.to_dict(orient="records"))
+        vectorstore = FAISS.from_documents(documents, embeddings)
+        vectorstore.save_local("PMS25")
+        print("✅ Embeddings saved")
+    return vectorstore
 def input_guardrail(user_input: str):
     text = user_input.lower()
     for p in FORBIDDEN_PATTERNS:
@@ -44,6 +90,7 @@ def input_guardrail(user_input: str):
             }
     return {"blocked": False}
 
+
 def metadata_guardrail(user_input: str):
     keywords = ["training cutoff", "knowledge cutoff", "model freeze"]
     if any(k in user_input.lower() for k in keywords):
@@ -53,7 +100,9 @@ def metadata_guardrail(user_input: str):
         }
     return {"blocked": False}
 
+
 ALLOWED_TOOLS = {"pdf_knowledge_base", "web_search", "get_stock_info"}
+
 
 def tool_guardrail(tool_name: str):
     if tool_name not in ALLOWED_TOOLS:
@@ -66,7 +115,8 @@ class AgentOutput(BaseModel):
     tool: Optional[Dict] = None
     tool_input: Optional[Dict] = None
 
-def output_guardrail(llm_output: dict)-> AgentOutput:
+
+def output_guardrail(llm_output: dict) -> AgentOutput:
     """
         Enforces that the agent only returns allowed structured output.
         Any free-form or missing fields get converted to an error.
@@ -74,20 +124,22 @@ def output_guardrail(llm_output: dict)-> AgentOutput:
     # Ensure required keys exist
     safe_output = {
         "content": llm_output.get("content", ""),
-        "action": llm_output.get("action", "none"),   # fix missing field
+        "action": llm_output.get("action", "none"),  # fix missing field
         "tool": llm_output.get("tool"),
         "tool_input": llm_output.get("tool_input")
     }
     return AgentOutput(**safe_output)
 
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
 def CreatVector(pdf_file):
-    loader = PyPDFLoader(pdf_file)   # <-- your PDF file
+    loader = PyPDFLoader(pdf_file)  # <-- your PDF file
     documents = loader.load()
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=800,chunk_overlap=150)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=150)
     docs = text_splitter.split_documents(documents)
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = FAISS.from_documents(docs, embeddings)
     vectorstore.save_local("pdf_vectorstore")
+
 
 @tool("pdf_Bhagwat_Geeta")
 def pdf_Bhagwat_Geeta(query: str) -> str:
@@ -95,7 +147,6 @@ def pdf_Bhagwat_Geeta(query: str) -> str:
     Use this tool to answer questions about the Geeta and teaching of bhagwat.
      """
     print("start: Inside pdf_search with query {0}".format(query))
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     """Get holiday details and company gift policy and process using India_Holidays_and_Gift_Policy.pdf"""
     vectorstore = FAISS.load_local(folder_path="Bhagavad-gita-As-It-Is", embeddings=embeddings,
                                    allow_dangerous_deserialization=True)
@@ -106,24 +157,10 @@ def pdf_Bhagwat_Geeta(query: str) -> str:
 @tool("PMS_data")
 def PMS_data(query: str) -> str:
     """
-      Use this tool to answer questions about the company PMS data, interview counts, training take, employee name.
+      Use this tool to answer questions about the PMS data, interview counts, Mandatory training taken, employee name.
     """
-    df = pd.read_excel('ProjectData.xlsx')
-    documents = []
-    for idx, row in df.iterrows():
-        text = " | ".join(f"{col}: {row[col]}" for col in df.columns)
-        documents.append(
-            Document(
-                page_content=text,
-                metadata={"row": idx + 1}
-            )
-        )
-    
-    print("start: Inside pdf_search with query {0}".format(query))
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
-    vectorstore = FAISS.from_documents(documents, embeddings)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
+    vectorstore = CreateVector(file_path)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
     docs = retriever.get_relevant_documents(query)
     return "\n\n".join(d.page_content for d in docs)
 
@@ -140,6 +177,7 @@ def pdf_knowledge_base(query: str) -> str:
     retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
     docs = retriever.get_relevant_documents(query)
     return "\n\n".join(d.page_content for d in docs)
+
 
 @tool("get_dividends")
 def get_dividends(symbol: str) -> str:
@@ -165,6 +203,7 @@ def get_dividends(symbol: str) -> str:
     response.raise_for_status()
     return response.json()
 
+
 @tool("get_stock_info")
 def get_stock_info(ticker: str) -> str:
     """
@@ -181,6 +220,7 @@ def get_stock_info(ticker: str) -> str:
     Market Cap: {info.get('marketCap')}
     Currency: {info.get('currency')}
     """
+
 
 @tool("web_search")
 def web_search(query: str) -> str:
@@ -203,7 +243,7 @@ def web_search(query: str) -> str:
     return "\n\n".join(
         f"{a['title']} — {a['source']['name']}\n{a['url']}"
         for a in articles
-        )
+    )
     # """
     # Search the web for latest information
     # """
@@ -213,10 +253,8 @@ def web_search(query: str) -> str:
     # return str(results)
 
 
-
 class AgentState(TypedDict):
     messages: List[BaseMessage]
-
 
 
 def should_continue(state):
@@ -227,7 +265,8 @@ def should_continue(state):
         return "tools"
     return "__end__"
 
-def build_graph(llm,tools):
+
+def build_graph(llm, tools):
     graph = StateGraph(AgentState)
     react_agent = create_react_agent(llm, tools)
     tool_node = ToolNode(tools)
@@ -249,12 +288,15 @@ def build_graph(llm,tools):
 
     return graph.compile()
 
+
 from langchain_core.messages import HumanMessage
+
 
 class AgentResponse(BaseModel):
     content: str
     tool: Optional[str] = None
     tool_input: Optional[Dict] = None
+
 
 def start_chat(query: str, session_id: str, api_key: str) -> str:
     for guard in (input_guardrail, metadata_guardrail):
@@ -264,7 +306,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
 
     llm = ChatGroq(model='moonshotai/kimi-k2-instruct-0905',
                    groq_api_key=os.environ["GROQ_API_KEY"],
-                   http_client=httpx.Client(verify=False),)
+                   http_client=httpx.Client(verify=False), )
     tools = [
         pdf_Bhagwat_Geeta,
         pdf_knowledge_base,
@@ -273,7 +315,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
         get_dividends,
         PMS_data
     ]
-    chat_graph = build_graph(llm,tools)
+    chat_graph = build_graph(llm, tools)
 
     system_prompt = '''
     - Only answer questions using your defined tools: PMS_data,pdf_Bhagwat_Geeta, pdf_knowledge_base, web_search, get_stock_info, get_dividends.
@@ -281,8 +323,6 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
         - if tool used are in pdf_knowledge_base or pdf_Bhagwat_Geeta pleaer return chunk text with reply as Chunk Text: chunk text from document 
         - Answer ONLY using the provided document context.
         - Do NOT use prior knowledge.
-        - if tool used are in pdf_knowledge_base or pdf_Bhagwat_Geeta and the answer is not explicitly present, reply:
-              "Not found in the provided documents."
         - Every factual statement MUST have a citation [chunk_id].
         - Today's date is {datetime.now().strftime('%Y-%m-%d')}. Use this as the current date
     '''
@@ -300,7 +340,13 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
 
     messages = messages + [HumanMessage(content=query)]
 
-    result = chat_graph.invoke({"messages": messages})
+    try:
+        result = chat_graph.invoke({"messages": messages})
+    except Exception as e:
+            if "429" in str(e) or "rate limit" in str(e).lower():
+                return "Rate Limit exceeded. please try after sometime"
+            else:
+                raise
 
     # update session memory
     start_chat._sessions[session_id] = result["messages"]
@@ -318,7 +364,6 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
-
 
 
 
