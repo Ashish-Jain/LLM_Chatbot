@@ -13,6 +13,8 @@ faiss-cpu
 sentence_transformers
 openpyxl
 pandas
+langchain_openai
+
 
 
 
