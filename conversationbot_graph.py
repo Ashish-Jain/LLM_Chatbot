@@ -107,6 +107,7 @@ def PMS_data(query: str) -> str:
     """
       Use this tool to answer questions about the company PMS data, interview counts, training take, employee name.
     """
+    df = pd.read_excel('ProjectData.xlsx')
     documents = []
     for idx, row in df.iterrows():
         text = " | ".join(f"{col}: {row[col]}" for col in df.columns)
@@ -316,6 +317,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
