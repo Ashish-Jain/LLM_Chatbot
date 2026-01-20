@@ -12,7 +12,19 @@ st.set_page_config(
 
 # --- Sidebar: API Key ---
 st.sidebar.header("API Configuration")
+def on_radio_change():
+    st.write("Changed to:", st.session_state.choice)
+
+
+
 with st.sidebar.form("key_form"):
+    choice = st.radio(
+        "Select view",
+        ["Groq","Open AI"],
+        horizontal=True
+    )
+
+
     key = st.text_input(
         "Groq API Key",
         type="password",
@@ -21,12 +33,12 @@ with st.sidebar.form("key_form"):
     submit = st.form_submit_button("Save Key")
     if submit:
         key = key.strip()
-        if not key.startswith("gsk_"):
-            st.sidebar.error("Invalid Groq API key format")
-        else:
+        if choice=='Groq':
             os.environ["GROQ_API_KEY"] = key
-            st.session_state.api_key = key
-            st.sidebar.success("API key saved ✅")
+        else:
+            os.environ["OPENAI_API_KEY"] = key
+        st.session_state.api_key = key
+        st.sidebar.success("API key saved ✅")
 
 if "GROQ_API_KEY" not in os.environ:
     st.warning("Please enter your Groq API Key in the sidebar to start chatting.")
@@ -56,7 +68,7 @@ user_input = st.chat_input("Ask me anything...")
 if user_input and user_input.strip():
     session_id = "11111"
     if "api_key" in st.session_state:
-        bot_reply = start_chat(user_input, session_id, st.session_state.api_key)
+        bot_reply = start_chat(user_input, session_id, st.session_state.api_key,choice)
     else:
         bot_reply = "API Key not provided or invalid"
 
