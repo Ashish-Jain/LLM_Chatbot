@@ -25,7 +25,7 @@ from datetime import datetime
 from langchain_core.messages import SystemMessage
 import pandas as pd
 from langchain.docstore.document import Document
-from pms_processing import CreateVector
+
 import pandas as pd
 import json
 import os
@@ -364,6 +364,7 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
