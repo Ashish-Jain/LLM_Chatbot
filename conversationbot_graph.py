@@ -23,6 +23,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import HumanMessage, SystemMessage
 from datetime import datetime
 from langchain_core.messages import SystemMessage
+from langchain_openai import ChatOpenAI
 import pandas as pd
 from langchain.docstore.document import Document
 
@@ -150,7 +151,7 @@ def pdf_Bhagwat_Geeta(query: str) -> str:
     """Get holiday details and company gift policy and process using India_Holidays_and_Gift_Policy.pdf"""
     vectorstore = FAISS.load_local(folder_path="Bhagavad-gita-As-It-Is", embeddings=embeddings,
                                    allow_dangerous_deserialization=True)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 7})
     docs = retriever.get_relevant_documents(query)
     return "\n\n".join(d.page_content for d in docs)
 
@@ -161,7 +162,7 @@ def PMS_data(query: str) -> str:
     """
     file_path="PMS2025.xlsx"
     vectorstore = CreateVector(file_path)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 7})
     docs = retriever.get_relevant_documents(query)
     return "\n\n".join(d.page_content for d in docs)
 
@@ -175,7 +176,7 @@ def pdf_knowledge_base(query: str) -> str:
     """Get holiday details and company gift policy and process using India_Holidays_and_Gift_Policy.pdf"""
     vectorstore = FAISS.load_local(folder_path="pdf_vectorstore", embeddings=embeddings,
                                    allow_dangerous_deserialization=True)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 7})
     docs = retriever.get_relevant_documents(query)
     return "\n\n".join(d.page_content for d in docs)
 
@@ -299,15 +300,21 @@ class AgentResponse(BaseModel):
     tool_input: Optional[Dict] = None
 
 
-def start_chat(query: str, session_id: str, api_key: str) -> str:
+def start_chat(query: str, session_id: str, api_key: str,platform) -> str:
     for guard in (input_guardrail, metadata_guardrail):
         result = guard(query)
         if result["blocked"]:
             return result["response"]
 
-    llm = ChatGroq(model='moonshotai/kimi-k2-instruct-0905',
-                   groq_api_key=os.environ["GROQ_API_KEY"],
-                   http_client=httpx.Client(verify=False), )
+    print(platform)
+
+    if platform.lower() == "groq":
+        llm = ChatGroq(model='moonshotai/kimi-k2-instruct-0905',
+                       groq_api_key=os.environ["GROQ_API_KEY"],
+                       http_client=httpx.Client(verify=False), )
+    else:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7,api_key=os.environ["OPENAI_API_KEY"])
+
     tools = [
         pdf_Bhagwat_Geeta,
         pdf_knowledge_base,
@@ -319,12 +326,6 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     chat_graph = build_graph(llm, tools)
 
     system_prompt = '''
-    - Only answer questions using your defined tools: PMS_data,pdf_Bhagwat_Geeta, pdf_knowledge_base, web_search, get_stock_info, get_dividends.
-    - Rules:
-        - if tool used are in pdf_knowledge_base or pdf_Bhagwat_Geeta pleaer return chunk text with reply as Chunk Text: chunk text from document 
-        - Answer ONLY using the provided document context.
-        - Do NOT use prior knowledge.
-        - Every factual statement MUST have a citation [chunk_id].
         - Today's date is {datetime.now().strftime('%Y-%m-%d')}. Use this as the current date
     '''
 
@@ -344,10 +345,11 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     try:
         result = chat_graph.invoke({"messages": messages})
     except Exception as e:
-            if "429" in str(e) or "rate limit" in str(e).lower() or "request too large" in str(e).lower():
-                return "Rate Limit exceeded or context is too large. please try after sometime with limited context"
-            else:
-                raise
+        raise
+            # if "429" in str(e) or "rate limit" in str(e).lower() or "request too large" in str(e).lower():
+            #     return "Rate Limit exceeded or context is too large. please try after sometime with limited context"
+            # else:
+            #     raise
 
     # update session memory
     start_chat._sessions[session_id] = result["messages"]
@@ -365,7 +367,6 @@ def start_chat(query: str, session_id: str, api_key: str) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
-
 
 
 
