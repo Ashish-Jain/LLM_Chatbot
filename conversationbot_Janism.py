@@ -279,8 +279,7 @@ def start_chat(query: str, session_id: str, api_key: str,platform) -> str:
     system_prompt = '''
         Answer ONLY using the provided context.
         Do NOT use prior knowledge and hallucinated answers. 
-        give snwer in atleast 50 words.
-        always return tool used.
+        give answer atleast 50 words.
         Answer format:
         - Answer:
     '''
@@ -323,6 +322,7 @@ def start_chat(query: str, session_id: str, api_key: str,platform) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
