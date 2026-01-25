@@ -43,7 +43,7 @@ user_input = st.chat_input("Ask me anything...")
 if user_input and user_input.strip():
     session_id = "11111"
     if "api_key" in st.session_state:
-        bot_reply = start_chat(user_input, session_id, st.session_state.api_key,choice)
+        bot_reply = start_chat(user_input, session_id, st.session_state.api_key,'groq')
     else:
         bot_reply = "API Key not provided or invalid"
 
@@ -64,5 +64,6 @@ if user_input and user_input.strip():
         st.session_state.memory.chat_memory.add_user_message(user_input)
 
         st.session_state.memory.chat_memory.add_ai_message(bot_reply)
+
 
 
