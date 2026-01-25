@@ -121,11 +121,17 @@ def pdf_bhatamber(query: str) -> str:
     print("start: Inside pdf_search with query {0}".format(query))
     vectorstore = FAISS.load_local(folder_path="Bhaktamar_merged_merged", embeddings=embeddings,
                                    allow_dangerous_deserialization=True)
-    docs = vectorstore.max_marginal_relevance_search(
+    docs = vectorstore.max_marginal_relevance_search_with_score(
         query,
         k=10,
         fetch_k=10
     )
+    threshold = 0.6
+
+    filtered_docs = [doc for doc, score in docs if score >= threshold]
+    if not filtered_docs:
+        print("No relevant documents found above threshold.")
+        return "No relevant documents found."
     # retriever = vectorstore.as_retriever(search_kwargs={"k": 7})
     # docs = retriever.get_relevant_documents(query)
     return "\n\n".join(d.page_content for d in docs)
@@ -140,11 +146,18 @@ def pdf_upnishand(query: str) -> str:
                                    allow_dangerous_deserialization=True)
     # retriever = vectorstore.as_retriever(search_kwargs={"k": 7})
     # docs = retriever.get_relevant_documents(query)
-    docs = vectorstore.max_marginal_relevance_search(
+    docs = vectorstore.max_marginal_relevance_search_with_score(
         query,
         k=10,
         fetch_k=20
     )
+    threshold = 0.6
+
+    filtered_docs = [doc for doc, score in docs if score >= threshold]
+
+    if not filtered_docs:
+        print("No relevant documents found above threshold.")
+        return "No relevant documents found."
     return "\n\n".join(d.page_content for d in docs)
 
 @tool("pdf_Geeta")
@@ -158,11 +171,18 @@ def pdf_Geeta(query: str) -> str:
                                    allow_dangerous_deserialization=True)
     # retriever = vectorstore.as_retriever(search_kwargs={"k": 7})
     # docs = retriever.get_relevant_documents(query)
-    docs = vectorstore.max_marginal_relevance_search(
+    docs = vectorstore.max_marginal_relevance_search_with_score(
         query,
         k=10,
         fetch_k=20
     )
+    threshold = 0.6
+
+    filtered_docs = [doc for doc, score in docs if score >= threshold]
+
+    if not filtered_docs:
+        print("No relevant documents found above threshold.")
+        return "No relevant documents found."
     return "\n\n".join(d.page_content for d in docs)
 
 @tool("pdf_aagams")
@@ -176,11 +196,18 @@ def pdf_aagams(query: str) -> str:
                                    allow_dangerous_deserialization=True)
     # retriever = vectorstore.as_retriever(search_kwargs={"k": 7})
     # docs = retriever.get_relevant_documents(query)
-    docs = vectorstore.max_marginal_relevance_search(
+    docs = vectorstore.max_marginal_relevance_search_with_score(
         query,
         k=10,
         fetch_k=20
     )
+    threshold = 0.6
+
+    filtered_docs = [doc for doc, score in docs if score >= threshold]
+
+    if not filtered_docs:
+        print("No relevant documents found above threshold.")
+        return "No relevant documents found."
     return "\n\n".join(d.page_content for d in docs)
 
 class AgentState(TypedDict):
@@ -296,6 +323,7 @@ def start_chat(query: str, session_id: str, api_key: str,platform) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
