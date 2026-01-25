@@ -5,7 +5,7 @@ import os
 
 # --- Page configuration ---
 st.set_page_config(
-    page_title="Groq Chatbot",
+    page_title="Bhatambar Chatbot",
     page_icon="🤖",
     layout="wide")
 
@@ -28,7 +28,7 @@ if "memory" not in st.session_state:
     st.session_state.memory = ConversationBufferMemory(return_messages=True)
 
 # --- Main layout ---
-st.markdown("<h1 style='text-align: left;'>🤖 Company Chatbot</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: left;'>🤖 Bhatambar, Upnishad, Geeta and jain Aagams Chatbot</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 # --- Display chat history ---
@@ -64,6 +64,7 @@ if user_input and user_input.strip():
         st.session_state.memory.chat_memory.add_user_message(user_input)
 
         st.session_state.memory.chat_memory.add_ai_message(bot_reply)
+
 
 
 
