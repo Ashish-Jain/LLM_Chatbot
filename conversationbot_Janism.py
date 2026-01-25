@@ -258,6 +258,7 @@ def start_chat(query: str, session_id: str, api_key: str,platform) -> str:
         Answer ONLY using the provided context.
         Do NOT use prior knowledge and hallucinated answers. 
         give answer atleast 50 words.
+        try to give answer in bulleted form.
         Answer format:
         - Answer:
     '''
@@ -300,6 +301,7 @@ def start_chat(query: str, session_id: str, api_key: str,platform) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
