@@ -119,7 +119,7 @@ def pdf_bhatamber(query: str) -> str:
     Use this tool to answer questions about the jain bhatamber and janism teaching of shlokas jain literature.
      """
     print("start: Inside pdf_search with query {0}".format(query))
-    vectorstore = FAISS.load_local(folder_path="Bhaktamar_merged", embeddings=embeddings,
+    vectorstore = FAISS.load_local(folder_path="Bhaktamar_merged_merged", embeddings=embeddings,
                                    allow_dangerous_deserialization=True)
     docs = vectorstore.max_marginal_relevance_search(
         query,
@@ -295,6 +295,7 @@ def start_chat(query: str, session_id: str, api_key: str,platform) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
