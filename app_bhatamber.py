@@ -15,7 +15,7 @@ st.sidebar.header("API Configuration")
 def on_radio_change():
     st.write("Changed to:", st.session_state.choice)
 
-api_key = st.secrets["OPENAI_API_KEY"]
+api_key = st.secrets["GROQ_API_KEY"]
 os.environ["GROQ_API_KEY"] = api_key
 
 if "GROQ_API_KEY" not in os.environ:
@@ -64,4 +64,5 @@ if user_input and user_input.strip():
     # Add to memory
     if bot_reply and isinstance(bot_reply, str):
         st.session_state.memory.chat_memory.add_user_message(user_input)
+
         st.session_state.memory.chat_memory.add_ai_message(bot_reply)
