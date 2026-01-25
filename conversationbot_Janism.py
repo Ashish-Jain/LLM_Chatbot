@@ -123,7 +123,7 @@ def pdf_bhatamber(query: str) -> str:
                                    allow_dangerous_deserialization=True)
     docs = vectorstore.max_marginal_relevance_search(
         query,
-        k=5,
+        k=10,
         fetch_k=10
     )
     # retriever = vectorstore.as_retriever(search_kwargs={"k": 7})
@@ -295,6 +295,7 @@ def start_chat(query: str, session_id: str, api_key: str,platform) -> str:
     parsed = output_guardrail({"content": last_content, "tools_used": tools_used})
 
     return parsed.content
+
 
 
 
