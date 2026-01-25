@@ -7,7 +7,7 @@ import os
 st.set_page_config(
     page_title="Groq Chatbot",
     page_icon="🤖",
-    layout="wide"
+    layout="wide")
 
 def on_radio_change():
     st.write("Changed to:", st.session_state.choice)
@@ -64,4 +64,5 @@ if user_input and user_input.strip():
         st.session_state.memory.chat_memory.add_user_message(user_input)
 
         st.session_state.memory.chat_memory.add_ai_message(bot_reply)
+
 
