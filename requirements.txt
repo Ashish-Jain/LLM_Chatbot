@@ -14,6 +14,8 @@ sentence_transformers
 openpyxl
 pandas
 langchain_openai
+pypdf
+
 
 
 
