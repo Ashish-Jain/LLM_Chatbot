@@ -47,17 +47,28 @@ def get_prompt():
     return PromptTemplate.from_template("""
 You are an ATS resume evaluator.
 
-Compare the resume content with the Job Description.
+Scoring Rules:
+- If ALL required skills are present → 85–95%
+- If MOST required skills (≥75%) → 70–84%
+- If SOME skills (40–74%) → 40–69%
+- If FEW skills (<40%) → below 40%
 
-Tasks:
-1. Give percentage match
-2. Say if it is a good fit (Yes / No)
-3. Justify with skills and experience gaps
+Experience Rules:
+- If experience meets or exceeds JD → do NOT penalize score
+- If experience exceeds JD significantly → add +5%
 
-Rules:
-- Use ONLY resume context
-- Do NOT assume or hallucinate
-- Min 50 words
+Instructions:
+- Compare Job Description skills vs Resume skills
+- Count explicit skill matches
+- Do NOT lower score due to unrelated resume sections
+- Do NOT hallucinate
+- Cite resume page numbers
+- Reason should show which requirements are matched and which are not and why score penalize
+
+Output Format (STRICT) as a bullet points:
+Match Percentage: XX%
+Fit Verdict: Yes / No
+Reasoning: <min 50 words>
 
 Resume Context:
 {context}
@@ -65,7 +76,7 @@ Resume Context:
 Job Description:
 {input}
 
-Final Answer:
+Answer:
 """)
 
 def build_rag_chain(llm, vectorstore):
@@ -151,5 +162,6 @@ if st.button("▶️ Match Resume with JD"):
 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
+
 
 
