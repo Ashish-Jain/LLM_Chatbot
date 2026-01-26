@@ -57,8 +57,7 @@ Tasks:
 Rules:
 - Use ONLY resume context
 - Do NOT assume or hallucinate
-- Cite page numbers
-- Max 100 words
+- Min 50 words
 
 Resume Context:
 {context}
@@ -148,14 +147,9 @@ if st.button("▶️ Match Resume with JD"):
 
                 st.subheader("📊 Match Result")
                 st.write(result["answer"])
-
-                st.subheader("📄 Page Number")
-                pages = sorted({
-                    doc.metadata.get("page", 0) + 1
-                    for doc in result["context"]
-                })
-                st.write(", ".join(map(str, pages)))
+           
 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
+
 
